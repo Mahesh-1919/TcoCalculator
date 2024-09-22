@@ -1,7 +1,7 @@
 "use client";
 
 import NavBar from "@/components/NavBar";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Car, Bike, BusFront } from "lucide-react";
 import { useRecoilState } from "recoil";
 import { TcoData, visible } from "@/store/atom";
@@ -13,14 +13,16 @@ import TcoDetails from "@/components/TcoDetails";
 import Graphs from "@/components/graphs";
 import Savings from "@/components/Savings";
 import Footer from "@/components/Footer";
-import html2pdf from "html2pdf.js";
 import { Button } from "@/components/ui/button";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 export default function Home() {
   const [isPrivate, setIsPrivate] = useState(true);
   const [tcoData, setTcoData] = useRecoilState(TcoData);
   const [visibled, setVisible] = useRecoilState(visible);
   const [isSavingsVisible, setSavingsVisible] = useState(false);
+  const invoiceRef = useRef(null);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -39,21 +41,25 @@ export default function Home() {
     setVisible(true);
   };
 
-  const downloadPdf = () => {
-    const invoice = document.getElementById("invoice");
-    console.log(invoice);
-    if (invoice) {
-      invoice.style.color = "black";
-    }
+  const downloadPdf = async () => {
+    const invoice: any = invoiceRef.current;
 
-    var opt = {
-      margin: 0.5,
-      filename: "myfile.pdf",
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-    };
-    html2pdf().from(invoice).set(opt).save();
+    try {
+      const canvas = await html2canvas(invoice);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "in",
+        format: "a4",
+      });
+
+      const width = pdf.internal.pageSize.getWidth();
+      const height = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, "JPEG", 0, 0, width, height);
+      pdf.save("download.pdf");
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   return (
@@ -126,7 +132,7 @@ export default function Home() {
                   </span>
                 </label>
               </div>
-              <div id="invoice" className="">
+              <div id="invoice" className="" ref={invoiceRef}>
                 <Tables />
                 {isSavingsVisible && <Savings amount={tcoData.savings || 0} />}
 
